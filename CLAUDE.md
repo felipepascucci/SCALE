@@ -37,7 +37,7 @@ Academic software engineering project. Inspired by SCALE (Software for CALculati
 | projects   | Top-level user project container             |
 | processes  | Unit processes belonging to a project        |
 | flows      | Input/output flows between processes         |
-| results    | Computed emergy results per project          |
+| uevs       | Unit Emergy Values (transformidades)         |
 
 ## Backend Layout
 
@@ -61,7 +61,7 @@ backend/
     └── test_api.py      # Endpoints /template e /uevs
 ```
 
-> **Integração UEV ↔ Cálculo:** o endpoint `POST /{id}/calculate` carrega os UEVs diretamente da tabela `uevs` do banco (via `db.query(UEV).all()`), garantindo que edições feitas pelo usuário na aba "Transformidades" sejam refletidas nos cálculos. O `UEVDatabase.load_defaults()` funciona apenas como fallback quando o banco está vazio.
+> **Integração UEV ↔ Cálculo:** o endpoint `POST /{id}/calculate` carrega os UEVs diretamente da tabela `uevs` do banco (via `db.query(UEV).all()`). O `UEVDatabase.load_defaults()` funciona apenas como fallback quando o banco está vazio.
 
 ## Running Locally
 
