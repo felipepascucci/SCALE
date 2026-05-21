@@ -14,8 +14,9 @@ build/
 venv/
 env/
 
-# Alembic
-backend/migrations/
+# Alembic — versionar migrations, ignorar só cache
+backend/migrations/__pycache__/
+backend/migrations/versions/__pycache__/
 
 # Node
 node_modules/
