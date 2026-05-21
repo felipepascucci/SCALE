@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(docker compose exec frontend npm test -- --watchAll=false 2>&1)"
+    ]
+  }
+}
