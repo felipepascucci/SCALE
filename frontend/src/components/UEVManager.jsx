@@ -109,7 +109,7 @@ export default function UEVManager({ darkMode }) {
             ) : (
               <tr key={uev.id} style={{ background: dk ? '#0f172a' : '#ffffff' }}>
                 <td style={tdStyle(dk)}>{uev.name}</td>
-                <td style={tdStyle(dk)}>{uev.value.toExponential(3)}</td>
+                <td style={tdStyle(dk)}>{uev.value.toExponential(3).replace('.', ',')}</td>
                 <td style={tdStyle(dk)}>{uev.unit}</td>
                 <td style={tdStyle(dk)}>{uev.reference ?? '—'}</td>
                 <td style={tdStyle(dk)}>

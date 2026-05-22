@@ -13,7 +13,7 @@ function toSuperscript(exp) {
 
 function mathNotation(value, digits = 3) {
   const [coeff, exp] = value.toExponential(digits).split('e')
-  return `${coeff} × 10${toSuperscript(exp)}`
+  return `${coeff.replace('.', ',')} × 10${toSuperscript(exp)}`
 }
 
 function sciFormatter(value) {
@@ -130,7 +130,7 @@ export default function EmergyReport({ report, darkMode, projectName }) {
                   {mathNotation(val, 3)}
                 </td>
                 <td style={{ ...tdStyle(dk), textAlign: 'right' }}>
-                  {total > 0 ? ((val / total) * 100).toFixed(2) : '—'}%
+                  {total > 0 ? ((val / total) * 100).toFixed(2).replace('.', ',') : '—'}%
                 </td>
               </tr>
             ))}
@@ -163,7 +163,7 @@ export default function EmergyReport({ report, darkMode, projectName }) {
 
       {report.emergy_cut_pct > 0 && (
         <p style={{ margin: '8px 0 0', fontSize: 11, color: dk ? '#94a3b8' : '#6b7280' }}>
-          ⚠ {report.emergy_cut_pct}% cortado pelo minflow ({report.minflow_threshold.toExponential(0)})
+          ⚠ {String(report.emergy_cut_pct).replace('.', ',')}% cortado pelo minflow ({report.minflow_threshold.toExponential(0)})
         </p>
       )}
     </div>
