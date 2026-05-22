@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import logging
 
 from services.graph_builder import ProcessGraph
