@@ -6,8 +6,18 @@ import { Cell, Legend, Pie, PieChart, ResponsiveContainer, Tooltip } from 'recha
 
 const COLORS = ['#2563eb', '#16a34a', '#d97706', '#dc2626', '#7c3aed', '#0891b2', '#db2777', '#65a30d']
 
+function toSuperscript(exp) {
+  const map = { '0':'⁰','1':'¹','2':'²','3':'³','4':'⁴','5':'⁵','6':'⁶','7':'⁷','8':'⁸','9':'⁹','-':'⁻','+':'' }
+  return String(exp).split('').map(c => map[c] ?? c).join('')
+}
+
+function mathNotation(value, digits = 3) {
+  const [coeff, exp] = value.toExponential(digits).split('e')
+  return `${coeff} × 10${toSuperscript(exp)}`
+}
+
 function sciFormatter(value) {
-  return value.toExponential(3) + ' sej'
+  return mathNotation(value, 3) + ' sej'
 }
 
 export default function EmergyReport({ report, darkMode, projectName }) {
@@ -72,7 +82,7 @@ export default function EmergyReport({ report, darkMode, projectName }) {
           {projectName && <span>{projectName} — </span>}Alvo: {report.target_name}
         </p>
         <p style={{ margin: '0 0 16px', fontSize: 18, fontWeight: 700, color: '#7c3aed' }}>
-          {total.toExponential(4)} sej
+          {mathNotation(total, 4)} sej
         </p>
 
         {pieData.length > 0 && (
@@ -117,7 +127,7 @@ export default function EmergyReport({ report, darkMode, projectName }) {
               <tr key={src}>
                 <td style={tdStyle(dk)}>{src}</td>
                 <td style={{ ...tdStyle(dk), textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
-                  {val.toExponential(3)}
+                  {mathNotation(val, 3)}
                 </td>
                 <td style={{ ...tdStyle(dk), textAlign: 'right' }}>
                   {total > 0 ? ((val / total) * 100).toFixed(2) : '—'}%

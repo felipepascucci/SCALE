@@ -11,8 +11,9 @@ class EmergyCalculationEngine:
 
     Implementa as 3 regras da álgebra emergética via DFS recursivo:
       Regra 1 — Soma: emergias de fontes independentes são somadas.
-      Regra 2 — Não-dupla-contagem: o mesmo fluxo chegando por caminhos
-                paralelos (bifurcação) é contado apenas uma vez.
+      Regra 2 — Não-dupla-contagem: processos intermediários bifurcados
+                são percorridos apenas uma vez por travessia. Fontes (SOURCE)
+                nunca são bloqueadas — cada fluxo físico é somado (Regra 1).
       Regra 3 — Co-produto integral: cada co-produto recebe a emergia total
                 do processo (tratado via chamadas independentes a calculate()).
     """
@@ -34,34 +35,26 @@ class EmergyCalculationEngine:
             "Iniciando cálculo emergético | alvo='%s' (id=%d) | minflow=%.2e",
             target_name, target_id, self.minflow,
         )
-        visited_sources: set[int] = set()
-        total = self._dfs_emergy(target_id, 1.0, visited_sources, depth=0)
+        visited_nodes: set[int] = set()
+        total = self._dfs_emergy(target_id, 1.0, visited_nodes, set(), depth=0)
         self.logger.info(
-            "Resultado final | alvo='%s' | total=%.6e sej | fontes contadas=%d",
-            target_name, total, len(visited_sources),
+            "Resultado final | alvo='%s' | total=%.6e sej", target_name, total,
         )
         return total
 
     def get_source_contributions(self, target_id: int) -> dict[str, float]:
         """
         Retorna a contribuição individual de cada fonte em sej.
-        Executa o DFS uma vez por fonte para isolar sua contribuição.
+        Para cada SOURCE, calcula o total com e sem ela; a diferença é sua contribuição.
         """
         contributions: dict[str, float] = {}
-
-        # Coleta IDs de todos os nós SOURCE alcançáveis a partir do alvo
         source_ids = self._collect_reachable_sources(target_id)
+        total = self._dfs_emergy(target_id, 1.0, set(), set(), depth=0)
 
         for sid in source_ids:
-            # Calcula a emergia total e extrai só a parte desta fonte
-            visited: set[int] = set()
-            total = self._dfs_emergy(target_id, 1.0, visited, depth=0)
-            # Se a fonte foi visitada, its contribution = total minus run without it
-            visited_excl: set[int] = {sid}
-            total_excl = self._dfs_emergy(target_id, 1.0, visited_excl, depth=0)
-            contribution = total - total_excl
+            total_excl = self._dfs_emergy(target_id, 1.0, set(), {sid}, depth=0)
             name = self.graph.get_node_name(sid)
-            contributions[name] = max(contribution, 0.0)
+            contributions[name] = max(total - total_excl, 0.0)
 
         self.logger.info(
             "Contribuições por fonte: %s",
@@ -77,13 +70,13 @@ class EmergyCalculationEngine:
         self,
         node_id: int,
         flow_fraction: float,
-        visited_sources: set[int],
+        visited_nodes: set[int],
+        excluded_sources: set[int],
         depth: int,
     ) -> float:
         indent = "  " * depth
         name = self.graph.get_node_name(node_id)
 
-        # Poda por limiar — evita explosão computacional em ciclos
         if flow_fraction < self.minflow:
             self.logger.debug(
                 "%sPRUNED  node='%s' fraction=%.2e < minflow=%.2e",
@@ -92,23 +85,20 @@ class EmergyCalculationEngine:
             return 0.0
 
         if self.graph.is_source(node_id):
-            return self._handle_source(node_id, name, flow_fraction, visited_sources, indent)
+            return self._handle_source(node_id, name, flow_fraction, excluded_sources, indent)
 
-        return self._handle_process(node_id, name, flow_fraction, visited_sources, depth, indent)
+        return self._handle_process(node_id, name, flow_fraction, visited_nodes, excluded_sources, depth, indent)
 
     def _handle_source(
         self,
         node_id: int,
         name: str,
         flow_fraction: float,
-        visited_sources: set[int],
+        excluded_sources: set[int],
         indent: str,
     ) -> float:
-        # Regra 2: não conta a mesma fonte duas vezes na mesma travessia
-        if node_id in visited_sources:
-            self.logger.debug(
-                "%sSKIP    source='%s' (já contado nesta travessia)", indent, name
-            )
+        # Fontes excluídas (usadas em get_source_contributions para isolar contribuições)
+        if node_id in excluded_sources:
             return 0.0
 
         uev = self.graph.get_node_uev(node_id)
@@ -122,7 +112,6 @@ class EmergyCalculationEngine:
                 return 0.0
 
         emergy = uev * flow_fraction
-        visited_sources.add(node_id)
         self.logger.debug(
             "%sSOURCE  '%s' | uev=%.4e | fraction=%.4e → %.4e sej",
             indent, name, uev, flow_fraction, emergy,
@@ -134,15 +123,23 @@ class EmergyCalculationEngine:
         node_id: int,
         name: str,
         flow_fraction: float,
-        visited_sources: set[int],
+        visited_nodes: set[int],
+        excluded_sources: set[int],
         depth: int,
         indent: str,
     ) -> float:
+        # Regra 2: processo já percorrido nesta travessia → bifurcação detectada, não contar novamente
+        if node_id in visited_nodes:
+            self.logger.debug(
+                "%sSKIP    process='%s' (bifurcação — já visitado)", indent, name
+            )
+            return 0.0
+        visited_nodes.add(node_id)
+
         predecessors = self.graph.get_predecessors(node_id)
         if not predecessors:
             return 0.0
 
-        total_input = self.graph.get_total_input(node_id)
         self.logger.debug(
             "%sENTER   node='%s' | fraction=%.4e | predecessores=%d",
             indent, name, flow_fraction, len(predecessors),
@@ -150,11 +147,9 @@ class EmergyCalculationEngine:
 
         total_emergy = 0.0
         for pred_id, amount in predecessors:
-            # Propaga a fração proporcional ao fluxo de cada predecessor
-            fraction = flow_fraction * (amount / total_input) if total_input > 0 else flow_fraction
-            # visited_sources é passado por referência — ramos paralelos compartilham
-            # o mesmo set, implementando a Regra 2 automaticamente
-            pred_emergy = self._dfs_emergy(pred_id, fraction, visited_sources, depth + 1)
+            # Propaga o fluxo físico real de cada predecessor (J, kg, etc.)
+            fraction = flow_fraction * amount
+            pred_emergy = self._dfs_emergy(pred_id, fraction, visited_nodes, excluded_sources, depth + 1)
             total_emergy += pred_emergy  # Regra 1: soma de origens independentes
 
         self.logger.debug(

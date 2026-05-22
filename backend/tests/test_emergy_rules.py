@@ -42,13 +42,13 @@ class TestRule1Sum:
         engine = _make_engine(graph, {"Sol": 1.0, "Vento": 2.0})
 
         # Act
-        # total_input(Produto) = 2.0
-        # emergy = 1.0*(1/2) + 2.0*(1/2) = 0.5 + 1.0 = 1.5
+        # emergy = uev_sol * flow_sol + uev_vento * flow_vento
+        #        = 1.0*1.0 + 2.0*1.0 = 3.0 sej
         total = engine.calculate(2)
         contributions = engine.get_source_contributions(2)
 
         # Assert: valor total e decomposição consistentes
-        assert abs(total - 1.5) < 1e-9
+        assert abs(total - 3.0) < 1e-9
         assert abs(contributions["Sol"] + contributions["Vento"] - total) < 1e-9
         assert contributions["Sol"] > 0
         assert contributions["Vento"] > 0
@@ -66,8 +66,8 @@ class TestRule2NoDoubleCounting:
         #   Sol ──► B ──(0.5)──► C ──(0.5)──┐
         #                └──(0.5)──► D ──(0.5)──┴──► E
         #
-        # Sem Regra 2 (dupla contagem): 0.5 + 0.5 = 1.0
-        # Com Regra 2 (Sol contado 1×): 0.5
+        # Sem Regra 2 (dupla contagem): 0.25 + 0.25 = 0.5
+        # Com Regra 2 (Sol contado 1×, primeiro caminho): 0.25
         graph = ProcessGraph()
         graph.add_node(0, "Sol", NodeType.SOURCE)
         graph.add_node(1, "Processo_B", NodeType.PROCESS)
@@ -87,12 +87,12 @@ class TestRule2NoDoubleCounting:
         total = engine.calculate(4)
 
         # Assert
-        double_counted_value = 1.0
+        double_counted_value = 0.5  # valor com dupla contagem (0.25 + 0.25)
         assert total < double_counted_value, (
             f"Dupla contagem detectada: total={total} deve ser < {double_counted_value}"
         )
-        assert abs(total - 0.5) < 1e-9, (
-            f"Esperado 0.5 (Sol contado uma vez), obtido {total}"
+        assert abs(total - 0.25) < 1e-9, (
+            f"Esperado 0.25 (Sol contado uma vez, primeiro caminho), obtido {total}"
         )
 
 

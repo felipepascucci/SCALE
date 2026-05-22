@@ -68,7 +68,7 @@ class ProcessGraph:
                 ntype = NodeType.PROCESS
             self.add_node(i, name=name, node_type=ntype, uev=uev_map.get(i))
 
-        for j, predecessors in lci.get_adjacency().items():
+        for j, predecessors in lci.get_adjacency(set(source_ids)).items():
             for k, amount in predecessors:
                 self.add_edge(k, j, flow_amount=amount)
 

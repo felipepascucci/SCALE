@@ -25,13 +25,16 @@ class LCIMatrix:
     def get_process_output(self, process_idx: int, product_idx: int) -> float:
         return float(self.A[product_idx, process_idx])
 
-    def get_adjacency(self) -> dict[int, list[tuple[int, float]]]:
+    def get_adjacency(self, source_indices: set[int] | None = None) -> dict[int, list[tuple[int, float]]]:
         """
-        Retorna lista de adjacência: {processo_j: [(produtor_k, amount), ...]}
+        Retorna lista de adjacência: {processo_j: [(produtor_k, weight), ...]}
 
-        Para cada produto i consumido pelo processo j (A[i][j] < 0), encontra o
-        processo k que o produz (A[i][k] > 0) e registra a aresta k → j.
+        Para nós SOURCE: weight = quantidade física bruta consumida (para multiplicar pelo UEV).
+        Para processos intermediários: weight = fração normalizada (consumido / produzido),
+        alinhado com SCALE (Marvuglia et al., 2013) — evita multiplicação explosiva de
+        quantidades físicas ao longo de caminhos multi-nível.
         """
+        source_indices = source_indices or set()
         n = len(self.processes)
         adj: dict[int, list[tuple[int, float]]] = {j: [] for j in range(n)}
 
@@ -41,6 +44,10 @@ class LCIMatrix:
                     amount_consumed = abs(self.A[i, j])
                     producers = [k for k in range(n) if self.A[i, k] > 0]
                     for k in producers:
-                        adj[j].append((k, amount_consumed))
+                        if k in source_indices:
+                            weight = amount_consumed  # quantidade física bruta (será × UEV)
+                        else:
+                            weight = amount_consumed / self.A[i, k]  # fração normalizada [0,1]
+                        adj[j].append((k, weight))
 
         return adj
